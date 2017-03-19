@@ -2,55 +2,90 @@ const chai = require('chai');
 
 var Bomber = class Bomber {
 
-    constructor(cell){
-        this.cell = cell;
+    constructor(initialPosition){
+        initialPosition.reclaimedBy(this);
+        this.currentPosition = initialPosition;
+        this.alive = true;
     }
 
-    stepsIn(cell) {
-        cell.releasedBy(this);
-        cell.reclaimedBy(this);
-        this.cell = cell;
+    stepsIn(newPosition) {
+        newPosition.reclaimedBy(this);
+        this.currentPosition = newPosition;
     }
 
-    isIn(cell) {
-        return this.is(cell);
+    bumpsInto(objectOrEnemy) {
+        objectOrEnemy.bumpsIntoWithBomber(this);
+    }
+
+    stepsOut(position) {
+        position.release();
+    }
+
+    isIn(position) {
+        return this.currentPosition === position;
+    }
+
+    kill() {
+        this.alive = false;
+    }
+
+    isDead() {
+        return !this.alive;
+    }
+
+    isAlive() {
+        return this.alive;
     }
 };
 
-var Coordinate = class Coordinate {
+var Bagulaa = class Bagulaa {
 
-    constructor(x,y) {
-        this.x = x;
-        this.y = y;
+    constructor(initialPosition) {
+        initialPosition.reclaimedBy(this);
+        this.currentPosition = initialPosition;
     }
 
-    is(coordinate) {
-        return this.x === coordinate.x && this.y === coordinate.y;
+    bumpsIntoWithBomber(bomber) {
+        bomber.kill();
+    }
+
+    stepsIn(newPosition) {
+        newPosition.reclaimedBy(this);
+        this.currentPosition = newPosition;
+    }
+
+    stepsOut(position) {
+        position.release();
+    }
+
+    isIn(position) {
+        return this.currentPosition === position;
+    }
+};
+
+var Wall = class Wall {
+    bumpsIntoWithBomber(bomber) {
+        throw new Error("Aca nOO");
     }
 };
 
 var Cell = class Cell {
 
-    constructor(coordinate) {
-        this.coordinate = coordinate;
+    constructor(okupa) {
+        this.okupa = okupa;
     };
 
-    reclaimedBy(bomber) {
-        if (!this.bomber) {
-            this.bomber = bomber; 
+    reclaimedBy(reclaimer) {
+        if(this.okupa) {
+           reclaimer.bumpsInto(this.okupa);   
         } else {
-            throw new Error("Bussy Cell");
+            this.okupa = reclaimer;
         }
     }
 
-    releasedBy(bomber) {
-        this.bomber = undefined;
+    release() {
+        this.okupa = undefined;
     }
-
-    is(cell) {
-        this.coordinate.is(cell.coordinate);
-    }
-
 };
 
 
@@ -58,34 +93,35 @@ describe("bomberman", () => {
     describe("bomberman", () => {
 
         it("steps into a cell which is empty then it moves in", () => {
-            var coord1 = new Coordinate(0,0);
-            var bomber = new Bomber(coord1);
+            //SetUp
+            var bomber = new Bomber(new Cell());
+            var there = new Cell();
 
-            var coord2 = new Coordinate(1,1);
-            var cell2 = new Cell(coord2);
-
-            bomber.stepsIn( cell2 );
-
-            chai.assert.equal(bomber.isIn(cell2), true);
+            //Run test
+            bomber.stepsIn( there );
+            chai.assert.equal(bomber.isIn(there), true);
         });
 
         it("steps into a cell which is busy with an object then it doesn't move and throw an exception", () => {
-            var coord1 = new Coordinate(0,0);
-            var bomber = new Bomber(coord1);
+            //SetUp
+            var bomber = new Bomber(new Cell());
+            var there = new Cell(new Wall());
 
-            var coord2 = new Coordinate(1,1);
-            var bomber2 = new Bomber(coord2);
-            var cell2 = new Cell(coord2);
-            cell2.reclaimedBy(bomber2);
-
-            console.log(bomber);
-            console.log(cell2.bomber);
-
-            chai.assert.throws(() => { bomber.stepsIn( cell2 ) });
-
+            //Run test
+            chai.assert.throws(() => { bomber.stepsIn( there ) }, Error);
         });
 
-        it.skip("steps into a cell which is busy with an enemy then it dies", () => {
+        it("steps into a cell which is busy with an enemy then it dies", () => {
+            //SetUp
+            var bomber = new Bomber(new Cell());
+
+            var there = new Cell();
+            var bagulaa = new Bagulaa(there);
+
+            //Run test
+            bomber.stepsIn(there);
+            chai.assert.equal(bomber.isDead(), true);
+            chai.assert.equal(bomber.isAlive(), false);
         });
 
         it.skip("leaves a boom next to a brick, the boom explotes and the bricks disappears", () => {
