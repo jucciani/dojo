@@ -25,6 +25,14 @@ var Bomber = class Bomber {
         return this.currentPosition === position;
     }
 
+    dropBomb() {
+        return new Bomb(this.currentPosition);
+    }
+
+    damagedByExplosion() {
+        this.kill();
+    }
+
     kill() {
         this.alive = false;
     }
@@ -71,20 +79,60 @@ var Wall = class Wall {
 
 var Cell = class Cell {
 
-    constructor(okupa) {
-        this.okupa = okupa;
+    constructor(occupant) {
+        this.occupant = occupant;
     };
 
     reclaimedBy(reclaimer) {
-        if(this.okupa) {
-           reclaimer.bumpsInto(this.okupa);   
+        if (this.occupant) {
+           reclaimer.bumpsInto(this.occupant);   
         } else {
-            this.okupa = reclaimer;
+            this.occupant = reclaimer;
         }
     }
 
+    damagedBy(damageInflictor) {
+        damageInflictor.damage(this.occupant);
+    }
+
     release() {
-        this.okupa = undefined;
+        this.occupant = undefined;
+    }
+};
+
+var Brick = class Brick {
+
+    damagedByExplosion() {
+        this.destroyed = true;
+    }
+
+    isDestroyed() {
+        return this.destroyed;
+    }
+};
+
+var Bomb = class Bomb {
+    constructor(initialPosition) {
+        this.currentPosition = initialPosition;
+    }
+
+    tick() {
+        return new Explosion(this.currentPosition);
+    }
+};
+
+var Explosion = class Explosion {
+
+    constructor(initialPosition) {
+        this.currentPosition = initialPosition;
+    }
+
+    damages(cells) {
+        cells.forEach((cell) => cell.damagedBy(this));
+    }
+
+    damage(victim) {
+        victim.damagedByExplosion();
     }
 };
 
@@ -124,10 +172,36 @@ describe("bomberman", () => {
             chai.assert.equal(bomber.isAlive(), false);
         });
 
-        it.skip("leaves a boom next to a brick, the boom explotes and the bricks disappears", () => {
+        it("leaves a boom next to a brick, the boom explotes and the bricks disappears", () => {
+            
+            //SetUp
+            var bomberCell = new Cell();
+            var bomber = new Bomber(bomberCell);
+            var brick = new Brick();
+            var cellWithBrick = new Cell(brick);
+
+            var bomb = bomber.dropBomb();
+            var explosion = bomb.tick();
+
+            //Run Test
+            explosion.damages([bomberCell, cellWithBrick]);
+            chai.assert.equal(brick.isDestroyed(), true);
+
         });
 
-        it.skip("throws a boom to a brick, the boom explotes and the bricks disappears", () => {
+        it("throws a boom to a brick, the boom explotes and the bricks disappears", () => {
+            //SetUp
+            var bomberCell = new Cell();
+            var bomber = new Bomber(bomberCell);
+            var brick = new Brick();
+            var destination = new Cell(brick);
+
+            var trayectory = bomber.throwBomb(destination);
+            var explosion = trayectory.runCourse();
+
+            //Run Test
+            explosion.damages([bomberCell, destination]);
+            chai.assert.equal(brick.isDestroyed(), true);
         });
     });
 
